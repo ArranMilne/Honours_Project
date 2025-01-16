@@ -15,9 +15,9 @@ for dataset_name in "${dataset_names[@]}"; do
     # Inner loop for prompt types
     for prompt_type in "${prompt_types[@]}"; do
         # Running inference
-        python main.py --run --shots 5 --knn --prompt_type "$prompt_type" --start_from_saved --dataset_name "$dataset_name" --model gpt-3.5-turbo
+        python main.py --run --shots 5 --knn --prompt_type "$prompt_type" --start_from_saved --dataset_name "$dataset_name" --model llama-2-7b
     done
 
     # Evaluate
-    python main.py --eval --shots 5 --knn --prompt_type "$prompt_type" --dataset_name "$dataset_name" --model gpt-3.5-turbo
+    python main.py --eval --shots 5 --knn --prompt_type "$prompt_type" --dataset_name "$dataset_name" --model llama-2-7b
 done
