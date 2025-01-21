@@ -22,7 +22,12 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', default='gnehm', help='Dataset name to use. Default is gnehm. Options are green, skillspan, fijo, sayfullina, kompetencer')
     parser.add_argument('--prompt_type', type=str, default='ner')
-    parser.add_argument('--model', type=str, default='gpt-3.5-turbo')
+
+
+    ##edited##
+    parser.add_argument('--model', type=str, default='llama-2-7b')
+    ####
+
     parser.add_argument('--raw_data_dir', type=str, default='data/annotated/raw/')
     # run parameters
     parser.add_argument('--run', action='store_true')
