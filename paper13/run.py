@@ -9,6 +9,13 @@ import random
 from demo_retrieval import knn_demo_retrieval
 from postprocess import check_format_response, postprocess_ner_prompt, get_list_of_selections
 
+###llama imports
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+###
+
+
+
 random.seed(1234)
 np.random.seed(1234)
 
