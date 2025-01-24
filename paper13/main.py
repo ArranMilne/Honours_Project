@@ -26,9 +26,16 @@ def parse_args():
 
     ##edited##
     parser.add_argument('--model', type=str, default='llama-2-7b')
-    ####
 
-    parser.add_argument('--raw_data_dir', type=str, default='data/annotated/raw/')
+
+    parser.add_argument('--model_dir', type=str, default='/users/40624421/LLM_paper13/localscratch/llama/models/llama-2-7b')
+    parser.add_argument('--raw_data_dir', type=str, default='/users/40624421/LLM_paper13/paper13/data/annotated/raw/')
+    parser.add_argument('--output_dir', type=str, default='/users/40624421/LLM_paper13/paper13/output/')
+
+    ##############
+
+
+
     # run parameters
     parser.add_argument('--run', action='store_true')
     parser.add_argument('--knn', action='store_true', help='Use KNN retrieval instead of random sampling for demonstrations')
@@ -43,6 +50,13 @@ def parse_args():
     parser.add_argument('--exclude_failed', action='store_true', help='whether to exclude previous failed attempt') 
     
     args = parser.parse_args()
+
+
+    ###
+    model_dir = os.path.join(args.model_dir, args.model)
+    ###
+
+
     args.save_path = args.save_path + '/' + args.model + '/' + args.dataset_name + '_' + args.prompt_type + '_' + str(args.shots) + '-shots.json'
 
     if args.knn:

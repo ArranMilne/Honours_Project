@@ -91,11 +91,15 @@ def run_openai(dataset, args):
             for line in readfile:
                 instance = json.loads(line)
                 failed_sentences.add(instance['sentence'])
+	
+    ##updated##
 
-    # sample demos from train set
-    demos_dataset = json.load(open(args.processed_data_dir + 'train.json'))
+    demos_dataset = json.load(open(args.raw_data_dir + 'train.json'))    
     demos_with_skills = [sample for sample in demos_dataset if len(sample['skill_spans']) > 0]
     demos_without_skills = [sample for sample in demos_dataset if len(sample['skill_spans']) == 0]
+
+    ##########
+
 
     negative_shots = min(len(demos_without_skills), args.shots)
     if args.positive_only:
