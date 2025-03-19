@@ -1,8 +1,0 @@
-Warning: A 'Archive' link exists but the target is not available on this node
-/users/40624421/.conda/envs/honours/lib/python3.10/site-packages/transformers/tokenization_utils_base.py:2077: FutureWarning: The `use_auth_token` argument is deprecated and will be removed in v5 of Transformers. Please use `token` instead.
-  warnings.warn(
-Traceback (most recent call last):
-  File "<stdin>", line 10, in <module>
-  File "/users/40624421/.conda/envs/honours/lib/python3.10/site-packages/transformers/tokenization_utils_base.py", line 2197, in from_pretrained
-    raise EnvironmentError(
-OSError: Can't load tokenizer for 'meta-llama/Llama-2-7b-hf'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same name. Otherwise, make sure 'meta-llama/Llama-2-7b-hf' is the correct path to a directory containing all relevant files for a LlamaTokenizer tokenizer.
