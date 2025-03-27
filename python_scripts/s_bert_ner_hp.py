@@ -12,12 +12,6 @@ from sklearn.metrics import classification_report, accuracy_score
 import wandb
 
 
-#os.environ["WANDB_PROJECT"] = "vit_snacks_sweeps"
-#os.environment["WANDB_LOG_MODEL"] = "true"
-
-#os.environ.pop("WANDB_MODE", None)
-#os.environ.pop("WANDB_API_KEY", None)
-
 
 def load_dataset(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -119,6 +113,7 @@ def tokenize_and_align_labels(examples):
     }
 
 
+
 train_dataset = train_dataset.map(tokenize_and_align_labels, batched=True)
 dev_dataset = dev_dataset.map(tokenize_and_align_labels, batched=True)
 test_dataset = test_dataset.map(tokenize_and_align_labels, batched=True)
@@ -192,17 +187,13 @@ def compute_metrics(p):
     "accuracy": accuracy
 }
 
+print("\n---Hyperparameter Tuning----\n")
 
 
 os.environ["WANDB_MODE"] = "offline"
 os.environ["WANDB_DISABLED"] = "true"
-
-
 os.environ["WANDB_DIR"] = "/users/40624421/sharedscratch"
 
-
-
-print("\n---Hyperparameter Tuning----\n")
 
 
 
@@ -225,51 +216,18 @@ def optuna_hp_space(trial):
 
 
 def model_init(trial):
-    return AutoModelForTokenClassification.from_pretrained(
+    model = AutoModelForTokenClassification.from_pretrained(
         "/users/40624421/sharedscratch/models/bert-base-NER",
         num_labels=3,
         ignore_mismatched_sizes=True
     )
 
+    wandb.finish()
+
+    return model
 
 
 
-#def log_trial_params(trial):
-#    wandb.config.update({
-#        "batch_size": trial.params["per_device_train_batch_size"],
-#        "learning_rate": trial.params["learning_rate"]
-#    }, allow_val_change=True)
-
-
-
-#os.environ["WANDB_MODE"] = "offline"
-
-#sweep_config = {
-#    "method": "random"
-#}
-
-
-#parameters_dict = {
-#    "epochs": {
-#        "value": 2
-#        },
-#    "batch_size": {
-#        "values": [16, 32, 64, 128]
-#        },
-#    "learning_rate": {
-#        "values": [1e-5, 2e-5, 3e-5, 5e-5]
-#    },
-#}
-
-
-#sweep_config["parameters"] = parameters_dict
-
-#sweep_id = wandb.sweep(sweep_config, project="s_bert_ner_hp")
-
-
-#def train(config=None):
-#  with wandb.init(config=config):
-#    config = wandb.config
 
 
 
@@ -289,7 +247,6 @@ temp_training_args = TrainingArguments(
     #weight_decay=0.01
 )
 
-
 trainer = Trainer(
     model=None,
     args=temp_training_args,
@@ -303,7 +260,7 @@ trainer = Trainer(
 
 
 
-#this number of trials is updating accurately in offline files
+
 best_trial = trainer.hyperparameter_search(
     direction="maximize",
     backend="optuna",
@@ -311,13 +268,14 @@ best_trial = trainer.hyperparameter_search(
     n_trials=5,
 )
 
-#wandb.agent(sweep_id, train, count=20)
+
 
 
 
 print("\n----Best Trial:----\n", best_trial)
 runs_directory = "/users/40624421/sharedscratch/datasets/skillspan_dataset/with_hp/temp/results"
 all_runs = [d for d in os.listdir(runs_directory) if os.path.isdir(os.path.join(runs_directory, d))]
+
 
 
 
@@ -337,7 +295,6 @@ training_args = TrainingArguments(
     report_to="none",
 )
 
-
 trainer = Trainer(
     model=None,
     args=training_args,
@@ -350,6 +307,7 @@ trainer = Trainer(
 )
 
 
+
 print("\n----Using Batch Size: " + str(training_args.per_device_train_batch_size) + " with Learning Rate: " + str(training_args.learning_rate) + "----\n")
 
 print("\n----Begin Training----\n")
@@ -358,6 +316,7 @@ print("\n")
 
 
 best_model = trainer.model
+
 
 
 print("\n----Developement Evaluation----\n")
@@ -374,4 +333,5 @@ print("\n----Test Evaluation----\n")
 test_results = trainer.evaluate(test_dataset)
 
 print("Test set results:", test_results)
+
 
