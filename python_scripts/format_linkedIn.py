@@ -18,22 +18,22 @@ rgx_2 = r"\b\w+(?:'\w+)?\b|[^\w\s]"
 
 
 
-#job_summary = "/users/40624421/sharedscratch/datasets/linkedIn_dataset/job_summary.json"
-#job_skills = "/users/40624421/sharedscratch/datasets/linkedIn_dataset/job_skills.json"
+job_summary = "/users/40624421/sharedscratch/datasets/linkedIn_dataset/job_summary.json"
+job_skills = "/users/40624421/sharedscratch/datasets/linkedIn_dataset/job_skills.json"
 
-#df_summary = pd.read_json(job_summary)
-#df_skills = pd.read_json(job_skills)
+df_summary = pd.read_json(job_summary)
+df_skills = pd.read_json(job_skills)
 
 
 #using the 'job_link' to match job summaries with job skills
-#df_merged = pd.merge(df_summary, df_skills, on="job_link", how="inner")
-#data = df_merged.to_dict(orient="records")
+df_merged = pd.merge(df_summary, df_skills, on="job_link", how="inner")
+data = df_merged.to_dict(orient="records")
 
 
 #used for testing the code with a smaller file
-input_file = "/users/40624421/sharedscratch/datasets/linkedIn_dataset/test.json"
-with open(input_file, 'r', encoding='utf-8') as f:
-    data = json.load(f)
+#input_file = "/users/40624421/sharedscratch/datasets/linkedIn_dataset/test.json"
+#with open(input_file, 'r', encoding='utf-8') as f:
+#    data = json.load(f)
 
 
 
@@ -43,7 +43,7 @@ with open(input_file, 'r', encoding='utf-8') as f:
 
 for job in data:
 
-    #lowercasing each skill in the list of skills and the job text so that there are no case issues when
+    #making each skill in the list of skills and the job text lowercase so that there are no case issues when
     #matching skills in the BIO tagging section.
     skills = [skill.lower() for skill in job["job_skills"]]
     job_summary = job["job_summary"].lower()
@@ -134,27 +134,27 @@ for job in data:
 
 
 #these sizes are set to match the skillspan subsets
-#train_size = 4800
-#dev_size = 3174
-#test_size = 3569
+train_size = 4800
+dev_size = 3174
+test_size = 3569
 
 #testing
-train_size = 20
+#train_size = 20
 
 train_data = structured_data[:train_size]
-#dev_data = structured_data[train_size:train_size + dev_size]
-#test_data = structured_data[train_size + dev_size:train_size + dev_size + test_size]
+dev_data = structured_data[train_size:train_size + dev_size]
+test_data = structured_data[train_size + dev_size:train_size + dev_size + test_size]
 
 
 #saving the train, dev and test subsets to three seperate files so that theey can each be loaded individually when we work with BERT and Llama2-7b
 with open("/users/40624421/sharedscratch/datasets/linkedIn_dataset/linkedIn_train_test.json", "w") as f:
     json.dump(train_data, f, indent=4, ensure_ascii=False)
 
-#with open("/users/40624421/sharedscratch/datasets/linkedIn_dataset/linkedIn_dev.json", "w") as f:
-#    json.dump(dev_data, f, indent=4, ensure_ascii=False)
+with open("/users/40624421/sharedscratch/datasets/linkedIn_dataset/linkedIn_dev.json", "w") as f:
+    json.dump(dev_data, f, indent=4, ensure_ascii=False)
 
-#with open("/users/40624421/sharedscratch/datasets/linkedIn_dataset/linkedIn_test.json", "w") as f:
-#    json.dump(test_data, f, indent=4, ensure_ascii=False)
+with open("/users/40624421/sharedscratch/datasets/linkedIn_dataset/linkedIn_test.json", "w") as f:
+    json.dump(test_data, f, indent=4, ensure_ascii=False)
 
 
 
