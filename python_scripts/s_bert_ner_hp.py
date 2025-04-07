@@ -1,18 +1,16 @@
-#for skillspan
-import random
 import torch
 import json
 import os
-import shutil
 import numpy as np
+import wandb
 from datasets import Dataset
 from seqeval.metrics import classification_report, precision_score, recall_score, f1_score
 from transformers import AutoTokenizer, AutoModelForTokenClassification, DataCollatorForTokenClassification, Trainer, TrainingArguments, AutoConfig
 from sklearn.metrics import classification_report, accuracy_score
-import wandb
 
 
 
+#function to load in the dataset. The 'idx' can be commented out when loading the LinkedIn Dataset
 def load_dataset(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -25,44 +23,24 @@ def load_dataset(file_path):
 
 
 
-train_dataset = load_dataset("/users/40624421/sharedscratch/datasets/skillspan_dataset/train_new.json")
-dev_dataset = load_dataset("/users/40624421/sharedscratch/datasets/skillspan_dataset/dev_new.json")
-test_dataset = load_dataset("/users/40624421/sharedscratch/datasets/skillspan_dataset/test_new.json")
+root_dir = "/mnt/scratch/users/genir/arran"
+dataset_dir = root_dir + "/datasets"
+dataset_name = "skillspan_dataset"
+
+model_dir = root_dir + "/models"
+model_name = "bert-base-NER"
+
+preprocessed_dir = root_dir + "/preprocess/bert-base-NER"
+output_dir = root_dir + "/outputs/bert-base-NER"
+
+
+train_dataset = load_dataset(os.path.join(dataset_dir, dataset_name, "train_new.json"))
+dev_dataset = load_dataset(os.path.join(dataset_dir, dataset_name, "dev_new.json"))
+test_dataset = load_dataset(os.path.join(dataset_dir, dataset_name, "test_new.json"))
 
 
 
-train_dataset = train_dataset.shuffle().select(range(200))
-dev_dataset = dev_dataset.shuffle().select(range(200))
-test_dataset = test_dataset.shuffle().select(range(200))
-
-
-
-def count_bio_labels_before(dataset):
-    bio_counts = {"B": 0, "I": 0, "O": 0}
-    for example in dataset["tags_skill"]:
-        for label in example:
-            if label in bio_counts:
-                bio_counts[label] += 1
-    return bio_counts
-
-
-bio_label_count = {
-    "train": count_bio_labels_before(train_dataset),
-    "dev": count_bio_labels_before(dev_dataset),
-    "test": count_bio_labels_before(test_dataset)
-}
-
-
-with open("/users/40624421/sharedscratch/datasets/skillspan_dataset/bio_count_before_tokenization.json", 'w') as f:
-    json.dump(bio_label_count, f, indent=4)
-
-
-print("BIO label counts before:", bio_label_count)
-print("\n")
-
-
-#this line is from huggingface page on how to load model
-tokenizer = AutoTokenizer.from_pretrained("/users/40624421/sharedscratch/models/bert-base-NER")
+os.makedirs(os.path.join(preprocessed_dir, dataset_name), exist_ok=True)
 
 
 label_map = {"O": 0, "B": 1, "I": 2}
@@ -70,15 +48,20 @@ label_map_inv = {0: "O", 1: "B", 2: "I"}
 
 
 
-model_config = AutoConfig.from_pretrained("/users/40624421/sharedscratch/models/bert-base-NER")
+#this code is from the huggingface page on how to load the model
+tokenizer = AutoTokenizer.from_pretrained(os.path.join(model_dir, model_name))
 
+model_config = AutoConfig.from_pretrained(os.path.join(model_dir, model_name))
 
-model = AutoModelForTokenClassification.from_pretrained("/users/40624421/sharedscratch/models/bert-base-NER", num_labels=3, ignore_mismatched_sizes=True)
-
+#had to sepcify the number of labels is 3 for our classes B, I and O. This model was originally using 9 labels
+model = AutoModelForTokenClassification.from_pretrained(os.path.join(model_dir, model_name), num_labels=3, ignore_mismatched_sizes=True)
 
 model.classifier = torch.nn.Linear(model.config.hidden_size, 3)
 
 
+
+
+#code for the bert tokenizer. This also adds padding and creates the attention mask.
 def tokenize_and_align_labels(examples):
     tokenized_inputs = tokenizer(
         examples["tokens"],
@@ -114,16 +97,18 @@ def tokenize_and_align_labels(examples):
 
 
 
+#applyign the tokenizer to our three subsets
 train_dataset = train_dataset.map(tokenize_and_align_labels, batched=True)
 dev_dataset = dev_dataset.map(tokenize_and_align_labels, batched=True)
 test_dataset = test_dataset.map(tokenize_and_align_labels, batched=True)
 
-
-
-
 data_collator = DataCollatorForTokenClassification(tokenizer)
 
 
+
+
+#counting the number of B, I and O after the tokenizer added padding to the original dataset. This information is displayed
+#in a graph in my dissertation.
 def count_bio_labels_after(dataset, label_map_inv):
     bio_counts = {"B": 0, "I": 0, "O": 0}
     for example in dataset["labels"]:
@@ -134,28 +119,21 @@ def count_bio_labels_after(dataset, label_map_inv):
                     bio_counts[label_str] += 1
     return bio_counts
 
-
-
 bio_label_count = {
     "train": count_bio_labels_after(train_dataset, label_map_inv),
     "dev": count_bio_labels_after(dev_dataset, label_map_inv),
     "test": count_bio_labels_after(test_dataset, label_map_inv)
 }
 
-with open("/users/40624421/sharedscratch/datasets/skillspan_dataset/bio_count_after_tokenization.json", 'w') as f:
-    json.dump(bio_label_count, f, indent=4)
 
-
-
-
-print("BIO label counts after:", bio_label_count)
+print("BIO label counts after tokenization:", bio_label_count)
 print("\n")
 
 
 
 
-epoch_f1_scores = {"B": [], "I": [], "O": []}
-
+#specifying the metrics for each class in our datasets: B, I and O. Using the import 'classification report' to
+#display the precision, recall and F1 score for each of the classes 
 def compute_metrics(p):
     predictions, labels = p
     predictions = predictions.argmax(axis=-1)
@@ -174,38 +152,28 @@ def compute_metrics(p):
     print(classification_report(labels, predictions, target_names=["B", "I", "O"]))
 
 
-    epoch_f1_scores["B"].append(report["B"]["f1-score"])
-    epoch_f1_scores["I"].append(report["I"]["f1-score"])
-    epoch_f1_scores["O"].append(report["O"]["f1-score"])
-
-
-    with open("/users/40624421/sharedscratch/datasets/skillspan_dataset/s_bert_ner_f1.json", 'w') as f:
-        json.dump(epoch_f1_scores, f)
-
     return {
+        "accuracy": accuracy
+    }
 
-    "accuracy": accuracy
-}
+
+
 
 print("\n---Hyperparameter Tuning----\n")
 
-
+#using 'wand' to log our optuna runs. Saving them offline because linking clusetr to wandb online was taking too long
 os.environ["WANDB_MODE"] = "offline"
 os.environ["WANDB_DISABLED"] = "true"
-os.environ["WANDB_DIR"] = "/users/40624421/sharedscratch"
-
-
 
 
 def optuna_hp_space(trial):
     print("\n")
     batch_size = trial.suggest_categorical("per_device_train_batch_size", [16, 32, 64, 128])
-    learning_rate = trial.suggest_float("learning_rate", 1e-5, 3e-5)
+    #learning_rate = trial.suggest_float("learning_rate", 1e-5, 3e-5)
+    learning_rate = trial.suggest_categorical("learning_rate", [1e-5, 2e-5, 3e-5, 4e-5])
     print("\n----Batch Size: " + str(batch_size) + ", Learning Rate: " + str(learning_rate) + "----\n")
 
-
     wandb.init(project="s_bert_ner_hp", config={"batch_size": batch_size, "learning_rate": learning_rate})
-
 
     return {
         "per_device_train_batch_size": batch_size,
@@ -214,39 +182,36 @@ def optuna_hp_space(trial):
 
 
 
-
 def model_init(trial):
     model = AutoModelForTokenClassification.from_pretrained(
-        "/users/40624421/sharedscratch/models/bert-base-NER",
+        "/mnt/scratch/users/genir/arran/models/bert-base-NER",
         num_labels=3,
         ignore_mismatched_sizes=True
     )
-
     wandb.finish()
 
     return model
 
 
-
-
-
-
+#defining the trainign arguments for the hyperparameter training
 temp_training_args = TrainingArguments(
-    output_dir="/users/40624421/sharedscratch/datasets/skillspan_dataset/with_hp/temp/vit-sweeps",
+    output_dir=os.path.join(output_dir, "skillspan_dataset/vit-sweeps"),
     evaluation_strategy="epoch",
     save_strategy="epoch",
     save_steps=None,
-    num_train_epochs=5,
+    num_train_epochs=1,
     save_total_limit=1,
     logging_strategy="epoch",
     load_best_model_at_end=True,
     #report_to="wandb",
-    #fp16=True
-    #warmup_steps=0,
+    # fp16=True
+    # warmup_steps=0,
     lr_scheduler_type='constant'
-    #weight_decay=0.01
+    # weight_decay=0.01
 )
 
+
+#usign the compute metrics defined earlier
 trainer = Trainer(
     model=None,
     args=temp_training_args,
@@ -258,42 +223,42 @@ trainer = Trainer(
     model_init=model_init
 )
 
-
-
-
+#finding the bestperforming trial and saving it to a variable so it can be used later
 best_trial = trainer.hyperparameter_search(
     direction="maximize",
     backend="optuna",
     hp_space=optuna_hp_space,
-    n_trials=5,
+    n_trials=1,
 )
 
 
+#wandb.finish()
 
 
 
+#printing the best trial with its accuracy, batchg size and learning rate
 print("\n----Best Trial:----\n", best_trial)
-runs_directory = "/users/40624421/sharedscratch/datasets/skillspan_dataset/with_hp/temp/results"
-all_runs = [d for d in os.listdir(runs_directory) if os.path.isdir(os.path.join(runs_directory, d))]
 
 
-
-
+#these training arguments are for the main models training process. Using the specific batch szie and learning rate from 'best trial'
 training_args = TrainingArguments(
-    output_dir="/users/40624421/sharedscratch/datasets/skillspan_dataset/with_hp/results",
+    output_dir=os.path.join(output_dir, "skillspan_dataset/results"),
     evaluation_strategy="epoch",
     save_strategy="epoch",
     learning_rate=best_trial.hyperparameters["learning_rate"],
     per_device_train_batch_size=best_trial.hyperparameters["per_device_train_batch_size"],
     per_device_eval_batch_size=best_trial.hyperparameters["per_device_train_batch_size"],
-    num_train_epochs=5,
+    num_train_epochs=1,
     weight_decay=0.01,
     save_steps=None,
     save_total_limit=1,
     logging_strategy="epoch",
     load_best_model_at_end=True,
     report_to="none",
+    lr_scheduler_type='constant'
 )
+
+
 
 trainer = Trainer(
     model=None,
@@ -308,16 +273,15 @@ trainer = Trainer(
 
 
 
+
 print("\n----Using Batch Size: " + str(training_args.per_device_train_batch_size) + " with Learning Rate: " + str(training_args.learning_rate) + "----\n")
+
 
 print("\n----Begin Training----\n")
 trainer.train()
 print("\n")
 
-
-best_model = trainer.model
-
-
+#best_model = trainer.model
 
 print("\n----Developement Evaluation----\n")
 
@@ -325,6 +289,7 @@ dev_results = trainer.evaluate(dev_dataset)
 
 print("Developement Set Evaluation Results:", dev_results)
 print("\n")
+
 
 
 
